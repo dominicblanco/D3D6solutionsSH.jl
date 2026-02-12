@@ -71,10 +71,10 @@ If you wish to use this code in your publication, research, teaching, or other a
   url    = {https://github.com/dominicblanco/D3D6solutionsSH.jl},
   note = {\url{ https://github.com/dominicblanco/D3D6solutionsSH.jl},
   year   = {2026},
-  doi = {10.5281/zenodo.17107616}
+  doi = {10.5281/zenodo.18626099}
 }}
 ```
-DOI : [10.5281/zenodo.10967034](https://doi.org/10.5281/zenodo.17107615) 
+DOI : [10.5281/zenodo.10967034](https://doi.org/10.5281/zenodo.18626099) 
 
 
 # Contact
