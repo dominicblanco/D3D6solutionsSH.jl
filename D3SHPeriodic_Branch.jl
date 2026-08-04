@@ -245,8 +245,8 @@ grid2chebm(x_fft, N) =
     [RadiiPolynomial.ifft!(complex.(getindex.(x_fft, i, j)), Chebyshev(N)) for i ∈ indices(codomain(x_fft[1])), j ∈ indices(domain(x_fft[1]))]
 
 # Takes a Chebyshev sequence and converts it back to a grid of ParameterSpace() × D₆Fourier sequences or operators.
-function cheb2grid(x::VecOrMat{<:Sequence}, N_fft)
-    vals = RadiiPolynomial.fft.(x, N_fft)
+function cheb2grid(x::VecOrMat{<:Sequence}, K_fft)
+    vals = RadiiPolynomial.fft.(x, K_fft)
     return [getindex.(vals, i) for i ∈ eachindex(vals[1])]
 end
 
@@ -306,19 +306,19 @@ grid2chebonlyD3(x_fft, N) =
     [RadiiPolynomial.ifft!(complex.(getindex.(x_fft, TensorIndices(i))), Chebyshev(N)) for i ∈ indices(space(x_fft[1]))]
 
 # The following functions perform what their names indicate.
-function _A_as_a_cheb_sequence_of_D3fourier_operators(A_cheb,Nc,pfourier)
+function _A_as_a_cheb_sequence_of_D3fourier_operators(A_cheb,K,pfourier)
     A_cheb0mat =  [getindex.(A_cheb, i) for i ∈ eachindex(coefficients(A_cheb[1])).-1] 
-    A_cheb0 = Vector{LinearOperator{CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, Matrix{Complex{Interval{Float64}}}}}(undef,Nc+1)
-    for i = 1:Nc+1 
+    A_cheb0 = Vector{LinearOperator{CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, Matrix{Complex{Interval{Float64}}}}}(undef,K+1)
+    for i = 1:K+1 
         A_cheb0[i] = LinearOperator(pfourier,pfourier, A_cheb0mat[i])
     end
     return A_cheb0 
 end
 
-function _X_as_a_cheb_sequence_of_D3fourier_sequences(X_cheb,Nc,pfourier)
+function _X_as_a_cheb_sequence_of_D3fourier_sequences(X_cheb,K,pfourier)
     X_chebvec = [getindex.(X_cheb, i) for i ∈ eachindex(coefficients(X_cheb[1])).-1]
-    X_cheb0 = Vector{Sequence{CartesianProduct{Tuple{ParameterSpace, D₃Fourier}},Vector{Complex{Interval{Float64}}}}}(undef,Nc+1)
-    for i = 1:Nc+1
+    X_cheb0 = Vector{Sequence{CartesianProduct{Tuple{ParameterSpace, D₃Fourier}},Vector{Complex{Interval{Float64}}}}}(undef,K+1)
+    for i = 1:K+1
         X_cheb0[i] = Sequence(pfourier, X_chebvec[i])
     end
     return X_cheb0 
@@ -363,11 +363,11 @@ function _subtract_from_identity(Mop)
     return Msub 
 end
 
-function I_minus_ADF_as_a_cheb_sequence_of_D3fourier_operators(I_minus_ADF_cheb,N3,pfourier)
+function I_minus_ADF_as_a_cheb_sequence_of_D3fourier_operators(I_minus_ADF_cheb,K3,pfourier)
     I_minus_ADF_cheb_0mat =  [getindex.(I_minus_ADF_cheb, i) for i ∈ eachindex(coefficients(I_minus_ADF_cheb[1])).-1] 
-    I_minus_ADF_cheb0 = Vector{LinearOperator{CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, Matrix{Complex{Interval{Float64}}}}}(undef,N3+1)
+    I_minus_ADF_cheb0 = Vector{LinearOperator{CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, CartesianProduct{Tuple{ParameterSpace, D₃Fourier}}, Matrix{Complex{Interval{Float64}}}}}(undef,K3+1)
     N = order(pfourier[2])[1]
-    for i = 1:N3+1 
+    for i = 1:K3+1 
         I_minus_ADF_cheb0[i] = LinearOperator(pfourier,pfourier, I_minus_ADF_cheb_0mat[i])
     end
     return I_minus_ADF_cheb0 
@@ -427,7 +427,7 @@ N = 40
 d = interval(5) 
 ν = interval(1.1)
 arclength = 0.05
-Nc = 3
+K = 3
 r₀ = interval(2e-5)
 #=Branch 2 
 ū = load("ubar_Th_4_6","ubar")
@@ -437,7 +437,7 @@ N = 24
 d = interval(5) 
 ν = interval(1.4)
 arclength = 0.5
-Nc = 31 
+K = 31 
 r₀ = interval(2e-6)=#
 
 fourier = D₃Fourier(N,π/d)
@@ -447,98 +447,98 @@ X = NormedCartesianSpace((ℓ¹(),ℓ¹ν),ℓ¹())
 pfourier = ParameterSpace() × fourier
 
 # Building the objects of Section 4.1.
-N_fft = nextpow(2, 2Nc + 1)
-npts = N_fft ÷ 2 + 1
+K_fft = nextpow(2, 2K + 1)
+npts = K_fft ÷ 2 + 1
 
-arclength_grid = [0.5 * arclength - 0.5 * cospi(2j/N_fft) * arclength for j ∈ 0:npts-1]
+arclength_grid = [0.5 * arclength - 0.5 * cospi(2j/K_fft) * arclength for j ∈ 0:npts-1]
 
 pfourier_mid = ParameterSpace() × fourier_mid
 ẇ = TangentVector(Sequence(pfourier_mid, [mid(μ) ; coefficients(ū)]),Sequence(pfourier_mid, zeros(dimension(pfourier_mid))),mid(γ))
 norm_u_grid,μ_grid0,w_grid0,ẇ_grid = _newton_continue(ū,mid(μ),pfourier_mid,arclength_grid,mid(γ),ẇ,npts)
 w_grid,μ_grid = _make_real(w_grid0,mid(γ))
 
-L_NK = abs((interval(1) + (sqrt(interval(3))/interval(2) * (interval(N+1))*π/d)^2)^2 + interval(findmin(μ_grid)[1]))
+L_N0 = abs((interval(1) + (sqrt(interval(3))/interval(2) * (interval(N+1))*π/d)^2)^2)
 
 w_fft = [w_grid ; reverse(w_grid)[2:npts-1]]
 ẇ_fft = [ẇ_grid ; reverse(ẇ_grid)[2:npts-1]]
-w̄_cheb = interval.(grid2cheb(w_fft,Nc))
-ẇ_cheb = interval.(grid2cheb(ẇ_fft,Nc))
+w̄_cheb = interval.(grid2cheb(w_fft,K))
+ẇ_cheb = interval.(grid2cheb(ẇ_fft,K))
 
 B_grid = inv.(DF.(w_fft,component.(ẇ_fft,2),mid(γ)))
-B_cheb = interval.(grid2chebm(B_grid, Nc))
-################################## The Bound Y₀ˢ ############################
-# The bound Y₀ˢ as in Lemma 4.2.
-# B(s)F(w̄(s)) is a polynomial with respect to s of order 4N
-N4 = 4Nc
-N4_fft = nextpow(2, 2N4 + 1)
-npts_N4 = N4_fft ÷ 2 + 1
+B_cheb = interval.(grid2chebm(B_grid, K))
+################################## The Bound Y₀ ############################
+# The bound Y₀ as in Lemma 4.2.
+# B(s)F(w̄(s)) is a polynomial with respect to s of order 4K
+K4 = 4K
+K4_fft = nextpow(2, 2K4 + 1)
+npts_K4 = K4_fft ÷ 2 + 1
 
-w̄_fft_N4 = cheb2grid(w̄_cheb,N4_fft)
-ẇ_fft_N4 = cheb2grid(ẇ_cheb,N4_fft)
-Ff = F_V(w̄_fft_N4,ẇ_fft_N4,γ,pfourier)
+w̄_fft_K4 = cheb2grid(w̄_cheb,K4_fft)
+ẇ_fft_K4 = cheb2grid(ẇ_cheb,K4_fft)
+Ff = F_V(w̄_fft_K4,ẇ_fft_K4,γ,pfourier)
 
-BF_fft = cheb2grid(B_cheb,N4_fft).*coefficients.(Ff)
+BF_fft = cheb2grid(B_cheb,K4_fft).*coefficients.(Ff)
 
-BF_cheb = grid2cheb(complex.(_vec_to_seq(BF_fft,N4_fft,pfourier)), N4)
+BF_cheb = grid2cheb(complex.(_vec_to_seq(BF_fft,K4_fft,pfourier)), K4)
 BF_cheb = [getindex.(BF_cheb, i) for i ∈ eachindex(coefficients(BF_cheb[1])).-1]
 BF_cheb = [Sequence(pfourier,BF_cheb[i]) for i = 1:length(BF_cheb)]
 
 #Tail part
-N3 = 3Nc
-N3_fft = nextpow(2, 3N3 + 1)
-npts_N3 = N3_fft ÷ 2 + 1
+K3 = 3K
+K3_fft = nextpow(2, 3K3 + 1)
+npts_K3 = K3_fft ÷ 2 + 1
     
-w̄_fft_N3 = cheb2grid(w̄_cheb,N3_fft)
+w̄_fft_K3 = cheb2grid(w̄_cheb,K3_fft)
 
-G_tail_fft = _compute_tail(w̄_fft_N3,γ,pfourier)
+G_tail_fft = _compute_tail(w̄_fft_K3,γ,pfourier)
 
-G_tail_cheb = grid2chebonlyD3(complex.(G_tail_fft), N3)
+G_tail_cheb = grid2chebonlyD3(complex.(G_tail_fft), K3)
 G_tail_cheb = [getindex.(G_tail_cheb, i) for i ∈ eachindex(coefficients(G_tail_cheb[1])).-1]
 G_tail_cheb = [Sequence(D₃Fourier(3N,π/d),G_tail_cheb[i]) for i = 1:length(G_tail_cheb)]
 
-Y₀ˢ = norm_cheb(BF_cheb,X) + interval(2Nc+1)/L_NK*norm_cheb(G_tail_cheb,ℓ¹ν)
-@show Y₀ˢ
-############################## The Bound Z₂ˢ ############################
+Y₀ = norm_cheb(BF_cheb,X) + exact(1)/L_N0*norm_cheb(G_tail_cheb,ℓ¹ν)
+@show Y₀
+############################## The Bound Z₂ ############################
 # The bound Z₂ˢ as in Lemma 4.3.
-B_cheb0 = _A_as_a_cheb_sequence_of_D3fourier_operators(B_cheb,Nc,pfourier)
-w̄_cheb0 = _X_as_a_cheb_sequence_of_D3fourier_sequences(w̄_cheb,Nc,pfourier)
+B_cheb0 = _A_as_a_cheb_sequence_of_D3fourier_operators(B_cheb,K,pfourier)
+w̄_cheb0 = _X_as_a_cheb_sequence_of_D3fourier_sequences(w̄_cheb,K,pfourier)
 norm_B_cheb0 = opnorm_cheb(B_cheb0,ν)
 fourier2 = D₃Fourier(2N,π/d)
 
 q_cheb0 = interval(2)*γ .- interval(6)*component.(w̄_cheb0,2)
-Z₂ˢ = (norm_B_cheb0 + interval(2Nc+1)/L_NK)*(interval(1) + norm_cheb(q_cheb0,ℓ¹ν) + interval(3)*r₀)
-@show Z₂ˢ
-############################ The Bound Z₁ˢ ##########################
-# The bound Z₁ˢ as in Lemma 4.4.
-# B(s)(0,ϕ(s)) is a polynomial with respect to s of order 2N
-N2 = 2Nc
-N2_fft = nextpow(2, 2N2 + 1)
-npts_N2 = N2_fft ÷ 2 + 1
-w̄_fft_N2 = cheb2grid(w̄_cheb,N2_fft)
-v̄_fft,ϕ_fft = _compute_v_ϕ(w̄_fft_N2,γ,pfourier,ν)
-v̄_cheb = grid2chebonlyD3(v̄_fft,N2)
+Z₂ = max(norm_B_cheb0,interval(2K+1)/L_N0)*(interval(1) + norm_cheb(q_cheb0,ℓ¹ν) + interval(3)*r₀)
+@show Z₂
+############################ The Bound Z₁ ##########################
+# The bound Z₁ as in Lemma 4.4.
+# B(s)(0,ϕ(s)) is a polynomial with respect to s of order 2K
+K2 = 2K
+K2_fft = nextpow(2, 2K2 + 1)
+npts_K2 = K2_fft ÷ 2 + 1
+w̄_fft_K2 = cheb2grid(w̄_cheb,K2_fft)
+v̄_fft,ϕ_fft = _compute_v_ϕ(w̄_fft_K2,γ,pfourier,ν)
+v̄_cheb = grid2chebonlyD3(v̄_fft,K2)
 v̄_cheb = [getindex.(v̄_cheb, i) for i ∈ eachindex(coefficients(v̄_cheb[1])).-1]
 v̄_cheb = [Sequence(D₃Fourier(2N,π/d),v̄_cheb[i]) for i = 1:length(v̄_cheb)]
-Bϕ_fft_N2 = _vec_to_seq(cheb2grid(B_cheb,N2_fft).*coefficients.(ϕ_fft),N2_fft,pfourier)
-Bϕ_cheb_N2 = grid2cheb(Bϕ_fft_N2,N2)
-Bϕ_cheb_N2 = [getindex.(Bϕ_cheb_N2, i) for i ∈ eachindex(coefficients(Bϕ_cheb_N2[1])).-1]
-Bϕ_cheb_N2 = [Sequence(pfourier,Bϕ_cheb_N2[i]) for i = 1:length(Bϕ_cheb_N2)]
-Z₁ˢ = norm_cheb(Bϕ_cheb_N2,X) + interval(2Nc+1)/L_NK*norm_cheb(v̄_cheb,ℓ¹ν)
-@show Z₁ˢ
-############################ The Bound Z₀ˢ ##########################
-# The bound Z₀ˢ as in Lemma 4.2.
-# B(s)B(s)^† is a polynomial with respect to s of order 2N
-w̄_fft_N2 = _vec_to_seq(w̄_fft_N2,N2_fft,pfourier)
-ẇ_fft_N2 = _vec_to_seq(cheb2grid(ẇ_cheb,N2_fft),N2_fft,pfourier)
+Bϕ_fft_K2 = _vec_to_seq(cheb2grid(B_cheb,K2_fft).*coefficients.(ϕ_fft),K2_fft,pfourier)
+Bϕ_cheb_K2 = grid2cheb(Bϕ_fft_K2,K2)
+Bϕ_cheb_K2 = [getindex.(Bϕ_cheb_K2, i) for i ∈ eachindex(coefficients(Bϕ_cheb_K2[1])).-1]
+Bϕ_cheb_K2 = [Sequence(pfourier,Bϕ_cheb_K2[i]) for i = 1:length(Bϕ_cheb_K2)]
+Z₁ = norm_cheb(Bϕ_cheb_K2,X) + exact(1)/L_N0*norm_cheb(v̄_cheb,ℓ¹ν)
+@show Z₁
+############################ The Bound Z₀ ##########################
+# The bound Z₀ as in Lemma 4.2.
+# B(s)B(s)^† is a polynomial with respect to s of order 2K
+w̄_fft_K2 = _vec_to_seq(w̄_fft_K2,K2_fft,pfourier)
+ẇ_fft_K2 = _vec_to_seq(cheb2grid(ẇ_cheb,K2_fft),K2_fft,pfourier)
 
-DFf = DFi.(w̄_fft_N2,component.(ẇ_fft_N2,2),γ)
-BDF_fft = _mat_to_linop(cheb2grid(B_cheb,N2_fft).*coefficients.(DFf),pfourier)
+DFf = DFi.(w̄_fft_K2,component.(ẇ_fft_K2,2),γ)
+BDF_fft = _mat_to_linop(cheb2grid(B_cheb,K2_fft).*coefficients.(DFf),pfourier)
 I_minus_BDF_fft = _subtract_from_identity(BDF_fft)
-I_minus_BDF_cheb = grid2chebm(I_minus_BDF_fft,N2)
-I_minus_BDF_cheb0 = I_minus_ADF_as_a_cheb_sequence_of_D3fourier_operators(I_minus_BDF_cheb,N2,pfourier)
-@show Z₀ˢ = opnorm_cheb(I_minus_BDF_cheb0,ν)
+I_minus_BDF_cheb = grid2chebm(I_minus_BDF_fft,K2)
+I_minus_BDF_cheb0 = I_minus_ADF_as_a_cheb_sequence_of_D3fourier_operators(I_minus_BDF_cheb,K2,pfourier)
+@show Z₀ = opnorm_cheb(I_minus_BDF_cheb0,ν)
 
 #Perform the Computer Assisted Proof of the Branch
-r_min = sup((interval(1) - Z₁ˢ - Z₀ˢ - sqrt((interval(1) - Z₁ˢ-Z₀ˢ)^2 - interval(2)*Y₀ˢ*Z₂ˢ))/Z₂ˢ)
-r_max = inf((interval(1) - Z₁ˢ - Z₀ˢ + sqrt((interval(1) - Z₁ˢ-Z₀ˢ)^2 - interval(2)*Y₀ˢ*Z₂ˢ))/Z₂ˢ)
-CAP(sup(Y₀ˢ),sup(Z₁ˢ+Z₀ˢ),sup(Z₂ˢ))
+r_min = sup((interval(1) - Z₁ - Z₀ - sqrt((interval(1) - Z₁-Z₀)^2 - interval(2)*Y₀*Z₂))/Z₂)
+r_max = inf((interval(1) - Z₁ - Z₀ + sqrt((interval(1) - Z₁-Z₀)^2 - interval(2)*Y₀*Z₂))/Z₂)
+CAP(sup(Y₀),sup(Z₁+Z₀),sup(Z₂))
