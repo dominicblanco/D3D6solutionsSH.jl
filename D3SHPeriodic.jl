@@ -49,39 +49,86 @@ function CAP(Y₀,Z₁,Z₂)
     end
 end
 
+
+function f(u,μ,γ)
+    f1 = similar(u)
+    Δ = project(Laplacian(2),space(u),space(u),Float64)
+    project!(f1,-(I + Δ)^2*u - μ*u + γ*u^2 - u^3)
+    return f1
+end
+
+function Df(u,μ,γ)
+    Df1 = LinearOperator(space(u),space(u),zeros(dimension(space(u)),dimension(space(u))))
+    Δ = project(Laplacian(2),space(u),space(u),Float64)
+    U = project(Multiplication(u),space(u),space(u),ComplexF64)
+    U² = project(Multiplication(u^2),space(u),space(u),ComplexF64)
+    Df1 = -(I + Δ)^2 - μ*I + 2γ * U - 3* U²
+    return Df1
+end
+
+function _newton(a,μ,γ)
+    ϵ = 1
+    nv = 1
+    j = 0
+    while (ϵ > 1e-14) & (j < 15)
+        F = f(a,μ,γ)
+        DF = Df(a,μ,γ)
+        a = a - DF\F
+        @show ϵ = norm(F,Inf)
+        if ϵ > 7
+            display("Newton may have diverged")
+            CrashNow = Badk
+            return a,ϵ
+        end
+        nv = norm(a)
+        if nv < 1e-5
+            @show nv = norm(a)
+            display("Newton may have converged to the 0 solution")
+            return nv,j
+            break
+        end
+        j += 1
+    end
+    return a,ϵ
+end
+
 ################### PROOF OF D₃ SOLUTION : MAIN CODE #################################################################################################################################################
 #Solution 1
-N = 70
+N = 80
 d = interval(10)
 μ = interval(0.01)
 γ = interval(1.6)
-r₀ = interval(3e-5)
+r₀ = interval(3e-8)
 ū = load("ubar_Th_3_5","ubar")
-ν = interval(1.15)
+ν = interval(1.09)
+ū, err = _newton(project(ū,D₃Fourier(N,π/mid(d))),mid(μ),mid(γ))
 #= Solution 2
-N = 12
+N = 80
 d = interval(5)
 μ = interval(0.01)
 γ = interval(1.6)
-r₀ = interval(2e-4)
+r₀ = interval(3e-8)
 ū = load("ubar_Th_3_6","ubar")
-ν = interval(1.38)=#
+ν = interval(1.09)
+ū, err = _newton(project(ū,D₃Fourier(N,π/mid(d))),mid(μ),mid(γ))=#
 #=Solution 3
-N = 14
+N = 80
 d = interval(5)
 μ = interval(-0.01)
 γ = interval(1.7)
-r₀ = interval(2e-4)
+r₀ = interval(3e-8)
 ū = load("ubar_Th_3_7","ubar")
-ν = interval(1.34)=#
+ν = interval(1.09)
+ū, err = _newton(project(ū,D₃Fourier(N,π/mid(d))),mid(μ),mid(γ))=#
 #=Solution 4
-N = 10
+N = 80
 d = interval(5)
 μ = interval(-0.2)
 γ = interval(2)
-r₀ = interval(9e-4)
+r₀ = interval(3e-8)
 ū = load("ubar_Th_3_8","ubar")
-ν = interval(1.33)=#
+ν = interval(1.09)
+ū, err = _newton(project(ū,D₃Fourier(N,π/mid(d))),mid(μ),mid(γ))=#
 
 fourier = D₃Fourier(N,π/d)
 ū_interval = Sequence(fourier, interval.(coefficients(ū)))
@@ -116,7 +163,7 @@ Y₀ = norm(A*project(L_diag.*ū_interval+G,fourier),X) + interval(1)/L_N*norm(
 ################################ Z₂ BOUND ######################################################
 # Computation of the Z₂ bound defined in Lemma 3.3.
 q = interval(2)*γ - interval(6)*ū_interval
-Z₂ = (norm_A + interval(1)/L_N)*(norm(q,X) + r₀)
+Z₂ = max(norm_A,interval(1)/L_N)*(norm(q,X) + r₀)
 @show Z₂
 ################################ Z₀ BOUND ######################################################
 # Computation of the Z₀ bound defined in Lemma 3.2.
@@ -127,6 +174,10 @@ Z₀ = opnorm(LinearOperator(coefficients(P.*(UniformScaling(interval(1)) - A*(L
 ϕ = Sequence(fourier, norm(Sequence(D₃Fourier(2N,π/d), [interval(0) ; coefficients(v̄_interval)[2:end]]),Inf)/ν^(interval(N+1))*interval.(ones(dimension(fourier))))
 Z₁ = norm(A*ϕ,X) + interval(1)/L_N * norm(v̄_interval,X)
 @show Z₁
+#Perform the Computer Assisted Proof of the Pattern
+r_min = sup((interval(1) - Z₁ - sqrt((interval(1) - Z₁)^2 - interval(2)*Y₀*Z₂))/Z₂)
+r_max = inf((interval(1) - Z₁ + sqrt((interval(1) - Z₁)^2 - interval(2)*Y₀*Z₂))/Z₂)
+CAP(sup(Y₀),sup(Z₁),sup(Z₂))
 #Perform the Computer Assisted Proof of the Pattern
 r_min = sup((interval(1) - Z₁ - sqrt((interval(1) - Z₁)^2 - interval(2)*Y₀*Z₂))/Z₂)
 r_max = inf((interval(1) - Z₁ + sqrt((interval(1) - Z₁)^2 - interval(2)*Y₀*Z₂))/Z₂)
